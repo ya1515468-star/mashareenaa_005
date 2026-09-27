@@ -1,0 +1,47 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Local IDE / OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Android local configuration / signing material
+android/local.properties
+android/key.properties
+android/*.jks
+android/*.keystore
+android/*.p12
+android/*.pem
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+**/google-services.json
+**/GoogleService-Info.plist
+**/service-account*.json
+**/*credentials*.json
+**/*secrets*.json
+
+# Python / generated caches
+__pycache__/
+*.pyc
+
+# Reports / temporary artifacts
+_mashareena_audit/
+*.log
+test_results.json

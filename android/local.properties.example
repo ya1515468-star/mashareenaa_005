@@ -1,0 +1,3 @@
+# Local developer-only configuration; DO NOT COMMIT android/local.properties
+sdk.dir=C:\\Users\\YOUR_USER\\AppData\\Local\\Android\\sdk
+flutter.sdk=C:\\src\\flutter
