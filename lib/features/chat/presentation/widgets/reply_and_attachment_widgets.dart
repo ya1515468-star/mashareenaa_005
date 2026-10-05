@@ -152,12 +152,12 @@ class AttachmentMenu extends StatelessWidget {
     const gifs = mashareenaChatGifCatalog;
 
     await showModalBottomSheet<void>(
-      context: context,
+      context: hostContext,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-            color: context.palette.surfaceElevated,
+            color: hostContext.palette.surfaceElevated,
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(24))),
         child: SingleChildScrollView(
