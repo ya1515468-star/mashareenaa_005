@@ -14,6 +14,20 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
   Timer? catalogTimer;
   Timer? ownershipTimer;
   Timer? premiumTimer;
+  StreamSubscription<AuthState>? authSubscription;
+
+  Future<void> syncRealtimeAuth(Session? session) async {
+    try {
+      await client.realtime.setAuth(session?.accessToken);
+    } catch (_) {
+      // Realtime auth is best-effort; channel reconnects can retry later.
+    }
+  }
+
+  unawaited(syncRealtimeAuth(client.auth.currentSession));
+  authSubscription = client.auth.onAuthStateChange.listen((state) {
+    unawaited(syncRealtimeAuth(state.session));
+  });
 
   void scheduleProfileRefresh([String? uid]) {
     profileTimer?.cancel();
@@ -99,6 +113,7 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
     catalogTimer?.cancel();
     ownershipTimer?.cancel();
     premiumTimer?.cancel();
+    unawaited(authSubscription?.cancel());
     unawaited(channel?.unsubscribe());
   });
 });
