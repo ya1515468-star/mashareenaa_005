@@ -33,6 +33,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   bool _recording = false;
   String? _path;
   String? _error;
+  bool _sending = false;
 
   @override
   void initState() {
@@ -78,18 +79,33 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _stopAndSend() async {
+  Future<void> _stopRecording() async {
+    if (!_recording || _sending) return;
     _ticker?.cancel();
-    String? path = _path;
-    if (_recording) {
-      path = await _recorder.stop();
+    try {
+      final path = await _recorder.stop();
       if (!mounted) return;
       setState(() {
         _recording = false;
         _path = path;
       });
+      if (path == null || path.isEmpty) {
+        setState(() => _error = 'تعذّر حفظ التسجيل الصوتي.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _recording = false;
+        _error = 'تعذّر إيقاف التسجيل: $e';
+      });
     }
-    if (!mounted || path == null || path.isEmpty) return;
+  }
+
+  Future<void> _uploadAndSend() async {
+    final path = _path;
+    if (_recording || _sending || !mounted || path == null || path.isEmpty) return;
+
+    setState(() => _sending = true);
     try {
       final bytes = await XFile(path).readAsBytes();
       final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -118,6 +134,8 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'تعذّر رفع الرسالة الصوتية: $e');
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -177,21 +195,32 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
                   color: p.textPrimary),
             ),
             const SizedBox(height: 4),
-            Text('جارٍ التسجيل...',
-                style: TextStyle(color: p.textSecondary, fontSize: 12)),
+            Text(
+              _recording
+                  ? 'جارٍ التسجيل… اضغط إيقاف عند الانتهاء'
+                  : (_path != null ? 'تم حفظ التسجيل — اضغط إرسال' : 'جاهز للتسجيل'),
+              style: TextStyle(color: p.textSecondary, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 22),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _stopAndDiscard,
+                  onPressed: _sending ? null : _stopAndDiscard,
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('إلغاء'),
                 ),
                 ElevatedButton.icon(
-                  onPressed: _path == null ? null : _stopAndSend,
-                  icon: const Icon(Icons.send),
-                  label: const Text('إرسال'),
+                  onPressed: _sending
+                      ? null
+                      : (_recording
+                          ? _stopRecording
+                          : (_path == null ? null : _uploadAndSend)),
+                  icon: Icon(_recording ? Icons.stop_circle_outlined : Icons.send),
+                  label: Text(_sending
+                      ? 'جاري الرفع…'
+                      : (_recording ? 'إيقاف' : 'إرسال')),
                 ),
               ],
             ),
