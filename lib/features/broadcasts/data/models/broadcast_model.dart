@@ -2,6 +2,20 @@ import '../../../../core/data/supabase_document_compat.dart';
 import '../../domain/entities/broadcast_entity.dart';
 
 class BroadcastModel extends BroadcastEntity {
+  static DateTime _parseCreatedAt(dynamic value) {
+    if (value is DateTime) return value.toLocal();
+    if (value is Timestamp) return value.toDate();
+    if (value is num) {
+      final millis = value.toInt();
+      return DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal();
+    }
+    if (value is String) {
+      final parsed = DateTime.tryParse(value.trim());
+      if (parsed != null) return parsed.toLocal();
+    }
+    return DateTime.now();
+  }
+
   const BroadcastModel({
     required super.id,
     required super.message,
@@ -24,7 +38,7 @@ class BroadcastModel extends BroadcastEntity {
       id: id,
       message: map['message'] as String? ?? '',
       sentByUid: map['sentByUid'] as String? ?? '',
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: _parseCreatedAt(map['createdAt']),
       targetUserIds: List<String>.unmodifiable(targetIds),
     );
   }
