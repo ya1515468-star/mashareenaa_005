@@ -41,6 +41,7 @@ class _PresenceLifecycleObserverState
   ProviderSubscription<AsyncValue<UserEntity?>>? _authSubscription;
   Set<String> _knownNotificationIds = <String>{};
   Set<String> _knownFriendRequestIds = <String>{};
+  String? _currentUid;
   Set<String> _knownCallIds = <String>{};
   late final ChatSoundService _chatSound =
       ChatSoundService(Supabase.instance.client);
@@ -57,14 +58,18 @@ class _PresenceLifecycleObserverState
 
         final user = next.valueOrNull;
         if (user != null) {
+          _currentUid = user.uid;
           _handleAuthenticatedUser(user);
         } else {
-          _updatePresence(false);
+          final previousUid = _currentUid;
+          _currentUid = null;
+          _updatePresence(false, uidOverride: previousUid);
         }
       },
     );
     final currentUser = ref.read(authControllerProvider).valueOrNull;
     if (currentUser != null) {
+      _currentUid = currentUser.uid;
       _handleAuthenticatedUser(currentUser);
     }
     // يُستدعى مرة واحدة هنا (وليس داخل build()) — تسجيل مستمعين
@@ -103,7 +108,9 @@ class _PresenceLifecycleObserverState
 
     WidgetsBinding.instance.removeObserver(this);
 
-    _updatePresence(false);
+    final uid = _currentUid;
+    _currentUid = null;
+    _updatePresence(false, uidOverride: uid);
 
     super.dispose();
   }
@@ -113,9 +120,12 @@ class _PresenceLifecycleObserverState
     _updatePresence(state == AppLifecycleState.resumed);
   }
 
-  void _updatePresence(bool isOnline) async {
-    final uid = ref.read(authControllerProvider).value?.uid;
-    if (uid == null) return;
+  Future<void> _updatePresence(
+    bool isOnline, {
+    String? uidOverride,
+  }) async {
+    final uid = uidOverride ?? _currentUid;
+    if (uid == null || uid.isEmpty) return;
 
     // ميزة 10 من القائمة الإضافية: من فعّل "إخفاء حالة الاتصال"
     // (متاحة لمن يملك canHideOnlineStatus في عضويته) يبقى isOnline
