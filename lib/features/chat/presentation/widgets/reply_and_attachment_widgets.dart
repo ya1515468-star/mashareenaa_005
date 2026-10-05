@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,14 +55,24 @@ typedef AttachmentPicked = Future<void> Function(
 /// مرفقات الشات كلها عبر Supabase Storage: صور، فيديو، ملفات، GIF محلية وصوت.
 class AttachmentMenu extends StatelessWidget {
   final AttachmentPicked onPicked;
-  const AttachmentMenu({super.key, required this.onPicked});
+  final BuildContext hostContext;
+
+  const AttachmentMenu({
+    super.key,
+    required this.onPicked,
+    required this.hostContext,
+  });
 
   static Future<void> show(BuildContext context,
       {required AttachmentPicked onPicked}) {
     return showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (_) => AttachmentMenu(onPicked: onPicked));
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AttachmentMenu(
+        onPicked: onPicked,
+        hostContext: context,
+      ),
+    );
   }
 
   Future<void> _pick(BuildContext context,
@@ -136,13 +148,13 @@ class AttachmentMenu extends StatelessWidget {
     }
   }
 
-  Future<void> _showGifs(BuildContext context) async {
+  Future<void> _showGifs(BuildContext hostContext) async {
     const gifs = mashareenaChatGifCatalog;
 
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
+      builder: (sheetContext) => Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
             color: context.palette.surfaceElevated,
@@ -159,8 +171,10 @@ class AttachmentMenu extends StatelessWidget {
                   InkWell(
                     borderRadius: BorderRadius.circular(8),
                     onTap: () async {
-                      Navigator.pop(context);
-                      await onPicked(MessageType.gif, gif, gif);
+                      Navigator.of(sheetContext).pop();
+                      if (hostContext.mounted) {
+                        await onPicked(MessageType.gif, gif, gif);
+                      }
                     },
                     child: SizedBox(
                       width: 22,
@@ -218,18 +232,27 @@ class AttachmentMenu extends StatelessWidget {
             label: 'رسالة صوتية',
             color: Colors.orangeAccent,
             onTap: () {
-              Navigator.pop(context);
-              VoiceRecorderSheet.show(context,
+              Navigator.of(context).pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!hostContext.mounted) return;
+                unawaited(VoiceRecorderSheet.show(
+                  hostContext,
                   onUploaded: (url) =>
-                      onPicked(MessageType.audio, url, 'voice.m4a'));
+                      onPicked(MessageType.audio, url, 'voice.m4a'),
+                ));
+              });
             }),
         _AttachmentAction(
             icon: Icons.gif_box_outlined,
             label: 'GIF',
             color: Colors.tealAccent,
             onTap: () {
-              Navigator.pop(context);
-              _showGifs(context);
+              Navigator.of(context).pop();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (hostContext.mounted) {
+                  unawaited(_showGifs(hostContext));
+                }
+              });
             }),
         _AttachmentAction(
             icon: Icons.insert_drive_file_outlined,
