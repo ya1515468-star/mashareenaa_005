@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../theme/app_theme.dart';
 import 'tiktok_web_player_stub.dart'
     if (dart.library.html) 'tiktok_web_player_web.dart';
@@ -152,49 +151,71 @@ class _InlineYoutubePlayer extends StatefulWidget {
 }
 
 class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
-  late final YoutubePlayerController _controller = YoutubePlayerController.fromVideoId(
-    videoId: widget.videoId,
-    autoPlay: true,
-    params: const YoutubePlayerParams(
-      showControls: true,
-      showFullscreenButton: true,
-      // Browsers commonly block autoplay with sound; start muted so the link starts immediately,
-      // while YouTube's own controls allow the user to unmute.
-      mute: true,
-      strictRelatedVideos: false,
-    ),
-  );
+  late final WebViewController _controller;
+  String? _error;
 
-  // يوتيوب يستخدم WebView داخليًا، والـWebView يبقى حيًّا لحظيًا بعد
-  // dispose() ريثما يُنظَّف الـplatform view. أي frame callback مجدوَل
-  // منه (كتحديث لون الخلفية) قد يُستدعى بعد أن صار الـState
-  // "defunct" فيحاول الوصول إلى context ويرمي "This widget has been
-  // unmounted". العلم يمنع أي عمل إضافي بعد التفكيك بلا الحاجة لتغيير
-  // الحزمة نفسها.
-  bool _disposed = false;
+  Uri _embedUri(String videoId) => Uri.https(
+        'www.youtube.com',
+        '/embed/$videoId',
+        const <String, String>{
+          'autoplay': '1',
+          'mute': '1',
+          'playsinline': '1',
+          'rel': '0',
+          'modestbranding': '1',
+        },
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.black)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onWebResourceError: (error) {
+            if (!mounted) return;
+            setState(() => _error = 'تعذّر تشغيل فيديو يوتيوب.');
+          },
+        ),
+      )
+      ..loadRequest(_embedUri(widget.videoId));
+  }
 
   @override
   void didUpdateWidget(covariant _InlineYoutubePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_disposed) return;
     if (oldWidget.videoId != widget.videoId) {
-      _controller.loadVideoById(videoId: widget.videoId);
+      _error = null;
+      _controller.loadRequest(_embedUri(widget.videoId));
     }
   }
 
   @override
-  void dispose() {
-    _disposed = true;
-    _controller.close();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_disposed) return const SizedBox.shrink();
+    if (_error != null) {
+      return Container(
+        height: MediaQuery.sizeOf(context).width * 9 / 16,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: context.palette.surfaceHighlight,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          _error!,
+          style: TextStyle(color: context.palette.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: YoutubePlayer(controller: _controller, aspectRatio: 16 / 9),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: WebViewWidget(controller: _controller),
+      ),
     );
   }
 }
