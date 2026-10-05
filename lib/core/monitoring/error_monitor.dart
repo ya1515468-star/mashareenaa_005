@@ -116,7 +116,18 @@ class ErrorMonitor {
     };
 
     PlatformDispatcher.instance.onError = (error, stack) {
-      unawaited(report(error, stack: stack, source: 'uncaught_async', severity: 'fatal'));
+      final message = error.toString();
+      final stackText = stack.toString();
+      final isYoutubeTimeout =
+          stackText.contains('youtube_player_iframe') &&
+              (error is TimeoutException ||
+                  message.contains('YouTube player failed to initialize within'));
+      unawaited(report(
+        error,
+        stack: stack,
+        source: 'uncaught_async',
+        severity: isYoutubeTimeout ? 'error' : 'fatal',
+      ));
       return true;
     };
   }
