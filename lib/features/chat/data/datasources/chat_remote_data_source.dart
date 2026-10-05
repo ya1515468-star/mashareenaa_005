@@ -329,7 +329,11 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     required String uid,
     required bool isTyping,
   }) async {
-    final channel = _typingChannels[threadId] ?? supabase.channel('chat:thread:$threadId');
+    final channel = _typingChannels[threadId] ??
+        supabase.channel(
+          'chat:thread:$threadId',
+          opts: const RealtimeChannelConfig(private: true),
+        );
     if (!_typingChannels.containsKey(threadId)) {
       _typingChannels[threadId] = channel;
       channel.subscribe();
